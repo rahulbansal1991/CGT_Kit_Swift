@@ -18,7 +18,7 @@ Pod::Spec.new do |s|
   s.author             = { "Rahul Bansal" => "rahul.bansal@cgt.co.in" }
 
   # ――― Platform Specifics ――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
-  s.platform     = :ios, "7.0"
+  s.platform     = :ios, "8.0"
 
   # ――― Source Location ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   s.source       = { :git => "https://github.com/rahulbansal1991/CGT_Kit_Swift.git", :tag => "1.0" }
