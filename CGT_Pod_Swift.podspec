@@ -2,7 +2,7 @@ Pod::Spec.new do |s|
 
   # ―――  Spec Metadata  ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   s.name         = "CGT_Pod_Swift"
-  s.version      = "1.1"
+  s.version      = "1.1.1"
   s.summary      = "CGT_Pod_Swift contains pods of all the basic and necessary libraries"
 
   # This description is used to generate tags and improve search results.
@@ -21,7 +21,7 @@ Pod::Spec.new do |s|
   s.platform     = :ios, "8.0"
 
   # ――― Source Location ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
-  s.source       = { :git => "https://github.com/rahulbansal1991/CGT_Kit_Swift.git", :tag => "1.1" }
+  s.source       = { :git => "https://github.com/rahulbansal1991/CGT_Kit_Swift.git", :tag => "1.1.1" }
 
   # ――― Source Code ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   s.source_files  = "NetworkManager/*.{swift}"
@@ -46,5 +46,7 @@ Pod::Spec.new do |s|
 
   # Image downloading/caching (requirement: iOS: 9.3)
   s.dependency 'Kingfisher', '~> 2.4'
+
+  s.prefix_header_contents = "#import <AFNetworking/AFNetworking.h>"
 
 end
