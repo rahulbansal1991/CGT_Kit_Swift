@@ -5,7 +5,7 @@
 
 target 'APIManager' do
 
-pod 'CGT_Pod_ObjC', '~> 1.1'
+pod 'Reachability'
 
 end
 

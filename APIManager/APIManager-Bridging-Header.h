@@ -3,7 +3,7 @@
 //
 
 #import <Foundation/Foundation.h>
-#import <AFNetworking/AFHTTPSessionManager.h>
+//#import <AFNetworking/AFHTTPSessionManager.h>
 #import <Reachability/Reachability.h>
 #import <AFHTTPRequestOperationManager+AutoRetry.h>
 #import "AFNetworking.h"
