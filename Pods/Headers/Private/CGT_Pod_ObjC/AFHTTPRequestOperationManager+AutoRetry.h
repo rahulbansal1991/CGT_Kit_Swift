@@ -1,0 +1,1 @@
+../../../CGT_Pod_ObjC/NetworkManager/AFHTTPRequestOperationManager+AutoRetry.h
