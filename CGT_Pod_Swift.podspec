@@ -2,12 +2,12 @@ Pod::Spec.new do |s|
 
   # ―――  Spec Metadata  ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   s.name         = "CGT_Pod_Swift"
-  s.version      = "1.1.4"
+  s.version      = "1.1.5"
   s.summary      = "CGT_Pod_Swift contains pods of all the basic and necessary libraries"
 
   # This description is used to generate tags and improve search results.
   s.description  = <<-DESC
-* An extensive blocks-based Swift wrapper.
+* An extensive blocks-based Swift wrapper. CGT_Pod_Swift contains pods of all the basic and necessary libraries
                    DESC
   s.homepage     = "http://www.cgt.co.in"
 
@@ -21,7 +21,7 @@ Pod::Spec.new do |s|
   s.platform     = :ios, "8.0"
 
   # ――― Source Location ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
-  s.source       = { :git => "https://github.com/rahulbansal1991/CGT_Kit_Swift.git", :tag => "1.1.4" }
+  s.source       = { :git => "https://github.com/rahulbansal1991/CGT_Kit_Swift.git", :tag => "1.1.5" }
 
   # ――― Source Code ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   s.source_files = "NetworkManager/*.{swift}"
