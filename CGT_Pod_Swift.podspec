@@ -2,12 +2,12 @@ Pod::Spec.new do |s|
 
   # ―――  Spec Metadata  ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   s.name         = "CGT_Pod_Swift"
-  s.version      = "1.1.3"
+  s.version      = "1.1.4"
   s.summary      = "CGT_Pod_Swift contains pods of all the basic and necessary libraries"
 
   # This description is used to generate tags and improve search results.
   s.description  = <<-DESC
-* An extensive blocks-based Objective C wrapper.
+* An extensive blocks-based Swift wrapper.
                    DESC
   s.homepage     = "http://www.cgt.co.in"
 
@@ -21,33 +21,32 @@ Pod::Spec.new do |s|
   s.platform     = :ios, "8.0"
 
   # ――― Source Location ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
-  s.source       = { :git => "https://github.com/rahulbansal1991/CGT_Kit_Swift.git", :tag => "1.1.3" }
+  s.source       = { :git => "https://github.com/rahulbansal1991/CGT_Kit_Swift.git", :tag => "1.1.4" }
 
   # ――― Source Code ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   s.source_files = "NetworkManager/*.{swift}"
-  s.source_files = "APIManager/APIManager-Bridging-Header.h"
 
   # ――― Project Settings ――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   s.requires_arc = true
 
   # Networking
-  s.dependency 'AFNetworking', '~> 2.5'
+  s.dependency 'Alamofire'
 
   # Loading
   s.dependency 'MBProgressHUD'
 
   # Internet Connectivity
-  s.dependency 'Reachability'
+#  s.dependency 'Reachability'
 
   # JSON Parsing
-  s.dependency 'ObjectMapper', '~> 1.2'
+  s.dependency 'ObjectMapper'
 
   # Utility library
-  s.dependency 'BFKit-Swift'
+#  s.dependency 'BFKit-Swift'
 
   # Image downloading/caching (requirement: iOS: 9.3)
-  s.dependency 'Kingfisher', '~> 2.4'
+  s.dependency 'Kingfisher'
 
-  s.prefix_header_contents = "#import <AFNetworking/AFNetworking.h>"
+#  s.prefix_header_contents = "#import <AFNetworking/AFNetworking.h>"
 
 end

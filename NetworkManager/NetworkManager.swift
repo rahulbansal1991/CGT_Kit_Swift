@@ -1,291 +1,80 @@
-//
-//  NetworkManager.swift
-//  APIManager
-//
-//  Created by SHEETAL on 30/04/16.
-//  Copyright © 2016 SHEETAL. All rights reserved.
-//
 
 import UIKit
+import Alamofire
 
-let REQUEST_TIMEOUT_INTERVAL : Int32 = 30
-let REQUEST_RETRY_AFTER_TIMEOUT : Int32 = 2
-let IMAGE_COMPRESSION_QUALITY : CGFloat = 1
+public enum HTTPMethod : String {
+    case GET
+    case POST
+    case DELETE
+}
 
-
-class NetworkManager: NSObject
-{
-    typealias RequestSuccess = (request: AFHTTPRequestOperation,data:AnyObject,status: Bool) -> (Void)
-    typealias RequestFail = (error: NSError) -> (Void)
+class NetworkManager: NSObject {
     
-    var networkQueue : [AFHTTPRequestOperation]=[]
+    typealias CompletionHandler = (response: Response<AnyObject, NSError>) -> Void
     
-    func cancelAllRunningNetworkOperations()
-    {
-        //var arr : NSMutableArray = self.getNetworkQueue()
-        for var operation : AFHTTPRequestOperation in networkQueue
-        {
-            defer {
+    static let sharedInstance = NetworkManager()
+    
+    private override init() {} //This prevents others from using the default '()' initializer for this class.
+    
+    // Header
+    func performRequestWithURL(URLString: URLStringConvertible, method: HTTPMethod, headers: [String : String]?, parameters: AnyObject?, completionHandler: CompletionHandler) {
+        
+        debugPrint("URL: \(URLString)")
+        debugPrint("Parameters: \(parameters)")
+        debugPrint("Headers: \(headers!)")
+        
+        var outputMethod = Method.GET
+        
+        if method == HTTPMethod.GET {
+            outputMethod = Method.GET
+        } else if method == HTTPMethod.POST {
+            outputMethod = Method.POST
+        } else if method == HTTPMethod.DELETE {
+            outputMethod = Method.DELETE
+        }
+                
+        Alamofire.request(outputMethod, URLString, parameters: (outputMethod == Method.GET ? nil : parameters as? [String : AnyObject]), encoding: .JSON, headers: headers!)
+            .responseJSON { response in
+                completionHandler(response: response)
+        }
+    }
+    
+    func uploadImageOnURL(URLString: URLStringConvertible, imageData: NSData, headers: [String : String]?, parameters: [String: AnyObject], completionHandler: CompletionHandler) {
+        debugPrint("File size is : \(imageData.length/1024/1024)")
+        debugPrint("URL: \(URLString)")
+        debugPrint("Parameters: \(parameters)")
+        debugPrint("Headers: \(headers!)")
+        
+        Alamofire.upload(
+            .POST,
+            URLString,
+            headers: headers!,
+            multipartFormData: { multipartFormData in
+                multipartFormData.appendBodyPart(data: imageData, name: "profile_pic",
+                    fileName: "image.jpg", mimeType: "image/jpeg")
+            },
+            encodingCompletion: { encodingResult in
+                switch encodingResult {
+                case .Success(let upload, _, _):
+                    upload.progress { bytesWritten, totalBytesWritten, totalBytesExpectedToWrite in
+                        dispatch_async(dispatch_get_main_queue()) {
+                            let percent = (Float(totalBytesWritten) / Float(totalBytesExpectedToWrite))
+                            print(percent)
+                        }
+                    }
+                    upload.validate()
+                    upload.responseJSON { response in
+                        completionHandler(response: response)
+                    }
+                case .Failure(let encodingError):
+                    print(encodingError)
+                    let error = NSError(domain: "", code: 404, userInfo: [NSLocalizedDescriptionKey: "Image Uploading Failed. Please try again."])
+                    let result = Result<AnyObject, NSError>.Failure(error)
+                    let response = Response(request: nil, response: nil, data: nil, result: result)
+                    completionHandler(response: response)
+                    
+                }
             }
-            do
-            {
-                try operation.cancel()
-                networkQueue.removeAll()
-            }
-            catch let exception
-            {
-                NSLog("Error while cancelling the operation")
-            }
-        }
-    }
-    
-    func executePostWithImage(url:String, parameters:NSDictionary,headers:NSDictionary,andImage : UIImage,andImageTag : String,constructingBodyWithBlock:((formData: AFMultipartFormData) -> Void),withSuccessHandler:RequestSuccess,withFailureHandler:RequestFail)
-    {
-        if(!self.isDataConnectionAvailable())
-        {
-            print("Network Connection is not available.")
-            withFailureHandler(error: NSError.init(domain: "Network Connection is not available.", code: 0, userInfo: [:]))
-            return
-        }
-        
-        let manager = AFHTTPRequestOperationManager()
-        manager.requestSerializer = AFJSONRequestSerializer()
-        manager.responseSerializer = AFHTTPResponseSerializer()
-        manager.requestSerializer.setValue("application/json", forHTTPHeaderField:"Content-Type")
-        manager.responseSerializer.acceptableContentTypes = NSSet(objects:"application/json", "text/html", "text/plain", "text/json", "text/javascript", "audio/wav") as Set<NSObject>
-        
-        // check if custom headers are present and add them
-        
-        headers.enumerateKeysAndObjectsWithOptions(NSEnumerationOptions.Reverse, usingBlock: { (key, value, stop) -> Void in
-            manager.requestSerializer.setValue(value as? String , forHTTPHeaderField: key as! String )
-        })
-        
-        let imageData : NSData = UIImageJPEGRepresentation(andImage, IMAGE_COMPRESSION_QUALITY)!
-        print(imageData.length)
-        
-        let operation : AFHTTPRequestOperation = manager.POST(url, parameters: parameters as [NSObject : AnyObject], constructingBodyWithBlock:
-            { (formData: AFMultipartFormData!) -> Void in
-                formData.appendPartWithFileData(imageData, name: andImageTag, fileName: "photo\(andImageTag).jpg", mimeType: "image/jpeg")
-            },
-            success:
-            {
-                (operation: AFHTTPRequestOperation!, responseObject: AnyObject!) in
-                
-                NSLog("Success: %@ ***** %@", operation.responseString!, responseObject as! String);
-                self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-                withSuccessHandler(request: operation, data: responseObject, status: true)
-            },
-            failure:
-            {
-                (operation: AFHTTPRequestOperation!,error: NSError!) in
-                self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-            }, autoRetry: REQUEST_RETRY_AFTER_TIMEOUT, retryInterval: REQUEST_TIMEOUT_INTERVAL)
-        operation.start()
-        networkQueue.append(operation)
-    }
-    
-    func executePostWithAudio(url:String, parameters:NSDictionary,headers:NSDictionary,andAudioFileUrl :NSURL,andAudioTag : String,constructingBodyWithBlock:((formData: AFMultipartFormData) -> Void),withSuccessHandler:RequestSuccess,withFailureHandler:RequestFail)
-    {
-        if(!self.isDataConnectionAvailable())
-        {
-            print("Network Connection is not available.")
-            withFailureHandler(error: NSError.init(domain: "Network Connection is not available.", code: 0, userInfo: [:]))
-            return
-        }
-        
-        let manager = AFHTTPRequestOperationManager()
-        manager.requestSerializer = AFJSONRequestSerializer()
-        manager.responseSerializer = AFHTTPResponseSerializer()
-        manager.requestSerializer.setValue("application/json", forHTTPHeaderField:"Content-Type")
-        manager.responseSerializer.acceptableContentTypes = NSSet(objects:"application/json", "text/html", "text/plain", "text/json", "text/javascript", "audio/wav") as Set<NSObject>
-        
-        // check if custom headers are present and add them
-        
-        headers.enumerateKeysAndObjectsWithOptions(NSEnumerationOptions.Reverse, usingBlock: { (key, value, stop) -> Void in
-            manager.requestSerializer.setValue(value as? String , forHTTPHeaderField: key as! String )
-        })
-        
-        let audioData : NSData = NSData(contentsOfURL: andAudioFileUrl)!
-        print(audioData.length)
-
-        
-        let operation : AFHTTPRequestOperation = manager.POST(url, parameters: parameters as [NSObject : AnyObject], constructingBodyWithBlock:
-            { (formData: AFMultipartFormData!) -> Void in
-                formData.appendPartWithFileData(audioData, name: andAudioTag, fileName: "Audio\(andAudioTag).mp3", mimeType: "Audio/mp3")
-            },
-            success:
-            {
-                (operation: AFHTTPRequestOperation!, responseObject: AnyObject!) in
-                
-                NSLog("Success: %@ ***** %@", operation.responseString!, responseObject as! String);
-                self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-                withSuccessHandler(request: operation, data: responseObject, status: true)
-            },
-            failure:
-            {
-                (operation: AFHTTPRequestOperation!,error: NSError!) in
-                self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-            }, autoRetry: REQUEST_RETRY_AFTER_TIMEOUT, retryInterval: REQUEST_TIMEOUT_INTERVAL)
-        operation.start()
-        networkQueue.append(operation)
-    }
-    
-    func executePostWithVideo(url:String, parameters:NSDictionary,headers:NSDictionary,andVideoFileUrl :NSURL,andVideoTag : String,constructingBodyWithBlock:((formData: AFMultipartFormData) -> Void),withSuccessHandler:RequestSuccess,withFailureHandler:RequestFail)
-    {
-        if(!self.isDataConnectionAvailable())
-        {
-            print("Network Connection is not available.")
-            withFailureHandler(error: NSError.init(domain: "Network Connection is not available.", code: 0, userInfo: [:]))
-            return
-        }
-        
-        let manager = AFHTTPRequestOperationManager()
-        manager.requestSerializer = AFJSONRequestSerializer()
-        manager.responseSerializer = AFHTTPResponseSerializer()
-        manager.requestSerializer.setValue("application/json", forHTTPHeaderField:"Content-Type")
-        manager.responseSerializer.acceptableContentTypes = NSSet(objects:"application/json", "text/html", "text/plain", "text/json", "text/javascript", "audio/wav") as Set<NSObject>
-        
-        // check if custom headers are present and add them
-        
-        headers.enumerateKeysAndObjectsWithOptions(NSEnumerationOptions.Reverse, usingBlock: { (key, value, stop) -> Void in
-            manager.requestSerializer.setValue(value as? String , forHTTPHeaderField: key as! String )
-        })
-        
-        let videoData : NSData = NSData(contentsOfURL: andVideoFileUrl)!
-        print(videoData.length)
-        
-        let operation : AFHTTPRequestOperation = manager.POST(url, parameters: parameters as [NSObject : AnyObject], constructingBodyWithBlock:
-            { (formData: AFMultipartFormData!) -> Void in
-                formData.appendPartWithFileData(videoData, name: andVideoTag, fileName: "Video \(andVideoTag).mp4", mimeType: "Video/mp4")
-            },
-            success:
-            {
-                (operation: AFHTTPRequestOperation!, responseObject: AnyObject!) in
-                
-                NSLog("Success: %@ ***** %@", operation.responseString!, responseObject as! String);
-                self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-                withSuccessHandler(request: operation, data: responseObject, status: true)
-            },
-            failure:
-            {
-                (operation: AFHTTPRequestOperation!,error: NSError!) in
-                self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-            }, autoRetry: REQUEST_RETRY_AFTER_TIMEOUT, retryInterval: REQUEST_TIMEOUT_INTERVAL)
-        operation.start()
-        networkQueue.append(operation)
-    }
-
-    func executePostWithUrl(url:String, parameters:NSDictionary,headers:NSDictionary,withSuccessHandler:RequestSuccess,withFailureHandler:RequestFail)
-    {
-        if(!self.isDataConnectionAvailable())
-        {
-            print("Network Connection is not available.")
-            withFailureHandler(error: NSError.init(domain: "Network Connection is not available.", code: 0, userInfo: [:]))
-            return
-        }
-        
-        let manager = AFHTTPRequestOperationManager()
-        manager.requestSerializer = AFJSONRequestSerializer()
-        manager.responseSerializer = AFHTTPResponseSerializer()
-        manager.requestSerializer.setValue("application/json", forHTTPHeaderField:"Content-Type")
-        manager.responseSerializer.acceptableContentTypes = NSSet(objects:"application/json", "text/html", "text/plain", "text/json", "text/javascript", "audio/wav") as Set<NSObject>
-        
-        // check if custom headers are present and add them
-        headers.enumerateKeysAndObjectsWithOptions(NSEnumerationOptions.Reverse, usingBlock: { (key, value, stop) -> Void in
-            manager.requestSerializer.setValue(value as? String , forHTTPHeaderField: key as! String )
-        })
-        
-        let operation : AFHTTPRequestOperation = manager.POST(url, parameters: parameters as [NSObject : AnyObject], success: {
-            (operation: AFHTTPRequestOperation!, responseObject: AnyObject!) in
-            
-            NSLog("Success: %@ ***** %@", operation.responseString!, responseObject as! String);
-            self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-            withSuccessHandler(request: operation, data: responseObject, status: true)
-            }, failure: {
-                
-                (operation: AFHTTPRequestOperation!,error: NSError!) in
-                self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-            }, autoRetry: REQUEST_RETRY_AFTER_TIMEOUT, retryInterval: REQUEST_TIMEOUT_INTERVAL)
-        operation.start()
-        networkQueue.append(operation)
-    }
-    
-    func executePutWithUrl(url:String, parameters:NSDictionary,headers:NSDictionary,withSuccessHandler:RequestSuccess,withFailureHandler:RequestFail)
-    {
-        if(!self.isDataConnectionAvailable())
-        {
-            print("Network Connection is not available.")
-            withFailureHandler(error: NSError.init(domain: "Network Connection is not available.", code: 0, userInfo: [:]))
-            return
-        }
-        
-        let manager = AFHTTPRequestOperationManager()
-        manager.requestSerializer = AFJSONRequestSerializer()
-        manager.responseSerializer = AFHTTPResponseSerializer()
-        manager.requestSerializer.setValue("application/json", forHTTPHeaderField:"Content-Type")
-        manager.responseSerializer.acceptableContentTypes = NSSet(objects:"application/json", "text/html", "text/plain", "text/json", "text/javascript", "audio/wav") as Set<NSObject>
-
-        // check if custom headers are present and add them
-        headers.enumerateKeysAndObjectsWithOptions(NSEnumerationOptions.Reverse, usingBlock: { (key, value, stop) -> Void in
-            manager.requestSerializer.setValue(value as? String , forHTTPHeaderField: key as! String )
-        })
-                let operation : AFHTTPRequestOperation = manager.PUT(url, parameters: parameters as [NSObject : AnyObject], success: {
-            (operation: AFHTTPRequestOperation!, responseObject: AnyObject!) in
-            
-            NSLog("Success: %@ ***** %@", operation.responseString!, responseObject as! String);
-            self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!) as! Bool
-            let apiSuccess=responseObject.objectForKey("success")?.isEqual(true)
-            withSuccessHandler(request: operation, data: responseObject, status: apiSuccess!)
-            }, failure:
-            {
-                (operation: AFHTTPRequestOperation!,error: NSError!) in
-                self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-            }, autoRetry: REQUEST_RETRY_AFTER_TIMEOUT, retryInterval: REQUEST_TIMEOUT_INTERVAL)
-        operation.start()
-        networkQueue.append(operation)
-    }
-    
-    func executeGetWithUrl(url:String, parameters:NSDictionary,headers:NSDictionary,withSuccessHandler:RequestSuccess,withFailureHandler:RequestFail)
-    {
-        if(!self.isDataConnectionAvailable())
-        {
-            print("Network Connection is not available.")
-            withFailureHandler(error: NSError.init(domain: "Network Connection is not available.", code: 0, userInfo: [:]))
-            return
-        }
-        
-        let manager = AFHTTPRequestOperationManager()
-        manager.requestSerializer = AFJSONRequestSerializer()
-        manager.responseSerializer = AFHTTPResponseSerializer()
-        manager.requestSerializer.setValue("application/json", forHTTPHeaderField:"Content-Type")
-        manager.responseSerializer.acceptableContentTypes = NSSet(objects:"application/json", "text/html", "text/plain", "text/json", "text/javascript", "audio/wav") as Set<NSObject>
-
-        // check if custom headers are present and add them
-        headers.enumerateKeysAndObjectsWithOptions(NSEnumerationOptions.Reverse, usingBlock: { (key, value, stop) -> Void in
-            manager.requestSerializer.setValue(value as? String , forHTTPHeaderField: key as! String )
-        })
-        
-        
-        let operation : AFHTTPRequestOperation = manager.GET(url, parameters: parameters as [NSObject : AnyObject],
-            success: {
-            (operation: AFHTTPRequestOperation!, responseObject: AnyObject!) in
-            
-            NSLog("Success: %@ ***** %@", operation.responseString!, responseObject as! String);
-            self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!) as! Bool
-            let apiSuccess=responseObject.objectForKey("success")?.isEqual(true)
-            withSuccessHandler(request: operation, data: responseObject, status: apiSuccess!)
-            }, failure:
-            {
-                (operation: AFHTTPRequestOperation!,error: NSError!) in
-                self.networkQueue.removeAtIndex(self.networkQueue.indexOf(operation)!)
-            }, autoRetry: REQUEST_RETRY_AFTER_TIMEOUT, retryInterval: REQUEST_TIMEOUT_INTERVAL)
-        operation.start()
-        networkQueue.append(operation)
-    }
-    
-    // To check Network connectivity
-    func isDataConnectionAvailable() -> Bool
-    {
-        return AFNetworkReachabilityManager.sharedManager().networkReachabilityStatus.rawValue > 0 ? true:false
+        )
     }
 }
