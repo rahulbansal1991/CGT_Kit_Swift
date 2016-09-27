@@ -30,7 +30,7 @@ Pod::Spec.new do |s|
   s.requires_arc = true
 
   # Networking
-  s.dependency 'Alamofire'
+  s.dependency 'Alamofire', '~> 3.4'
 
   # Loading
   s.dependency 'MBProgressHUD'
